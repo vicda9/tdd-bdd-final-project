@@ -33,6 +33,7 @@ from enum import Enum
 from decimal import Decimal
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import orm
 
 logger = logging.getLogger("flask.app")
 
@@ -177,17 +178,9 @@ class Product(db.Model):
 
     @classmethod
     def find(cls, product_id: int):
-        """Finds a Product by it's ID
-
-        :param product_id: the id of the Product to find
-        :type product_id: int
-
-        :return: an instance with the product_id, or None if not found
-        :rtype: Product
-
-        """
-        logger.info("Processing lookup for id %s ...", product_id)
-        return cls.query.get(product_id)
+        """Finds a Product by its ID"""
+        with orm.Session(db.engine) as session:
+            return session.get(cls, product_id)
 
     @classmethod
     def find_by_name(cls, name: str) -> list:

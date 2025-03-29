@@ -20,7 +20,7 @@ Product Store Service with UI
 """
 from flask import jsonify, request, abort
 from flask import url_for  # noqa: F401 pylint: disable=unused-import
-from service.models import Product
+from service.models import Product, Category, DataValidationError
 from service.common import status  # HTTP Status Codes
 from . import app
 
@@ -33,6 +33,9 @@ def healthcheck():
     """Let them know our heart is still beating"""
     return jsonify(status=200, message="OK"), status.HTTP_200_OK
 
+@app.route("/cause-error")
+def cause_error():
+    raise Exception("Intentional Error for testing 500")
 
 ######################################################################
 # H O M E   P A G E
@@ -98,31 +101,80 @@ def create_products():
 # L I S T   A L L   P R O D U C T S
 ######################################################################
 
-#
-# PLACE YOUR CODE TO LIST ALL PRODUCTS HERE
-#
+@app.route("/products", methods=["GET"])
+def list_products():
+    """List all products or filter by name, category, availability"""
+    name = request.args.get("name")
+    category = request.args.get("category")
+    available = request.args.get("available")
+
+    query = Product.query
+    if name:
+        query = query.filter(Product.name == name)
+    if category:
+        query = query.filter(Product.category == Category[category])
+    if available:
+        query = query.filter(Product.available == (available.lower() == 'true'))
+
+    products = query.all()
+    results = [product.serialize() for product in products]
+    return jsonify(results), status.HTTP_200_OK
 
 ######################################################################
 # R E A D   A   P R O D U C T
 ######################################################################
 
-#
-# PLACE YOUR CODE HERE TO READ A PRODUCT
-#
+@app.route("/products/<int:product_id>", methods=["GET"])
+def get_product(product_id):
+    """Retrieve a single Product by its ID"""
+    product = Product.find(product_id)
+    if not product:
+        return jsonify({"error": "Product not found"}), status.HTTP_404_NOT_FOUND
+    return jsonify(product.serialize()), status.HTTP_200_OK
+
 
 ######################################################################
 # U P D A T E   A   P R O D U C T
 ######################################################################
 
-#
-# PLACE YOUR CODE TO UPDATE A PRODUCT HERE
-#
+@app.route("/products/<int:product_id>", methods=["PUT"])
+def update_product(product_id):
+    """Update an existing product"""
+    product = Product.find(product_id)
+    if not product:
+        return jsonify({"error": "Product not found"}), status.HTTP_404_NOT_FOUND
+
+    try:
+        product.deserialize(request.json)
+        product.update()
+        return jsonify(product.serialize()), status.HTTP_200_OK
+    except DataValidationError as e:
+        return jsonify({"error": str(e)}), status.HTTP_400_BAD_REQUEST
 
 ######################################################################
 # D E L E T E   A   P R O D U C T
 ######################################################################
 
 
-#
-# PLACE YOUR CODE TO DELETE A PRODUCT HERE
-#
+@app.route("/products/<int:product_id>", methods=["DELETE"])
+def delete_product(product_id):
+    """Delete a product by its ID"""
+    product = Product.find(product_id)
+    if not product:
+        return jsonify({"error": "Product not found"}), status.HTTP_404_NOT_FOUND
+
+    product.delete()
+    return '', status.HTTP_204_NO_CONTENT
+
+@app.errorhandler(Exception)
+def internal_server_error(error):
+    """Handles unexpected server error with 500_SERVER_ERROR"""
+    message = str(error)
+    app.logger.error(message)
+    response = jsonify(
+        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        error="Internal Server Error",
+        message=message
+    )
+    response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    return response

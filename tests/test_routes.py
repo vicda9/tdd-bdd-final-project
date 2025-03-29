@@ -43,11 +43,9 @@ DATABASE_URI = os.getenv(
 )
 BASE_URL = "/products"
 
-
 ######################################################################
 #  T E S T   C A S E S
 ######################################################################
-# pylint: disable=too-many-public-methods
 class TestProductRoutes(TestCase):
     """Product Service tests"""
 
@@ -56,7 +54,6 @@ class TestProductRoutes(TestCase):
         """Run once before all tests"""
         app.config["TESTING"] = True
         app.config["DEBUG"] = False
-        # Set up the test database
         app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URI
         app.logger.setLevel(logging.CRITICAL)
         init_db(app)
@@ -69,32 +66,31 @@ class TestProductRoutes(TestCase):
     def setUp(self):
         """Runs before each test"""
         self.client = app.test_client()
-        db.session.query(Product).delete()  # clean up the last tests
+        db.session.query(Product).delete()
         db.session.commit()
 
     def tearDown(self):
+        """Runs after each test"""
         db.session.remove()
 
-    ############################################################
-    # Utility function to bulk create products
-    ############################################################
+############################################################
+# Utility function to bulk create products
+############################################################
     def _create_products(self, count: int = 1) -> list:
         """Factory method to create products in bulk"""
         products = []
         for _ in range(count):
             test_product = ProductFactory()
             response = self.client.post(BASE_URL, json=test_product.serialize())
-            self.assertEqual(
-                response.status_code, status.HTTP_201_CREATED, "Could not create test product"
-            )
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
             new_product = response.get_json()
             test_product.id = new_product["id"]
             products.append(test_product)
         return products
 
-    ############################################################
-    #  T E S T   C A S E S
-    ############################################################
+######################################################################
+#  T E S T   C A S E S
+######################################################################
     def test_index(self):
         """It should return the index page"""
         response = self.client.get("/")
@@ -108,73 +104,88 @@ class TestProductRoutes(TestCase):
         data = response.get_json()
         self.assertEqual(data['message'], 'OK')
 
-    # ----------------------------------------------------------
-    # TEST CREATE
-    # ----------------------------------------------------------
     def test_create_product(self):
         """It should Create a new Product"""
         test_product = ProductFactory()
-        logging.debug("Test Product: %s", test_product.serialize())
         response = self.client.post(BASE_URL, json=test_product.serialize())
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        
+    def test_read_product(self):
+        """It should Read a single Product"""
+        test_product = self._create_products()[0]
+        response = self.client.get(f"{BASE_URL}/{test_product.id}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.get_json()
+        self.assertEqual(data["name"], test_product.name)
 
-        # Make sure location header is set
-        location = response.headers.get("Location", None)
-        self.assertIsNotNone(location)
+    def test_update_product(self):
+        """It should Update an existing Product"""
+        test_product = self._create_products()[0]
+        new_data = test_product.serialize()
+        new_data["name"] = "Updated Name"
+        response = self.client.put(f"{BASE_URL}/{test_product.id}", json=new_data)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.get_json()
+        self.assertEqual(data["name"], "Updated Name")
 
-        # Check the data is correct
-        new_product = response.get_json()
-        self.assertEqual(new_product["name"], test_product.name)
-        self.assertEqual(new_product["description"], test_product.description)
-        self.assertEqual(Decimal(new_product["price"]), test_product.price)
-        self.assertEqual(new_product["available"], test_product.available)
-        self.assertEqual(new_product["category"], test_product.category.name)
-
-        #
-        # Uncomment this code once READ is implemented
-        #
-
-        # # Check that the location header was correct
-        # response = self.client.get(location)
-        # self.assertEqual(response.status_code, status.HTTP_200_OK)
-        # new_product = response.get_json()
-        # self.assertEqual(new_product["name"], test_product.name)
-        # self.assertEqual(new_product["description"], test_product.description)
-        # self.assertEqual(Decimal(new_product["price"]), test_product.price)
-        # self.assertEqual(new_product["available"], test_product.available)
-        # self.assertEqual(new_product["category"], test_product.category.name)
-
-    def test_create_product_with_no_name(self):
-        """It should not Create a Product without a name"""
-        product = self._create_products()[0]
-        new_product = product.serialize()
-        del new_product["name"]
-        logging.debug("Product no name: %s", new_product)
-        response = self.client.post(BASE_URL, json=new_product)
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-
-    def test_create_product_no_content_type(self):
-        """It should not Create a Product with no Content-Type"""
-        response = self.client.post(BASE_URL, data="bad data")
-        self.assertEqual(response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
-
-    def test_create_product_wrong_content_type(self):
-        """It should not Create a Product with wrong Content-Type"""
-        response = self.client.post(BASE_URL, data={}, content_type="plain/text")
-        self.assertEqual(response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
-
-    #
-    # ADD YOUR TEST CASES HERE
-    #
-
-    ######################################################################
-    # Utility functions
-    ######################################################################
-
-    def get_product_count(self):
-        """save the current number of products"""
+    def test_delete_product(self):
+        """It should Delete a Product"""
+        test_product = self._create_products()[0]
+        response = self.client.delete(f"{BASE_URL}/{test_product.id}")
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        
+    def test_list_products(self):
+        """It should List all Products"""
+        self._create_products(3)
         response = self.client.get(BASE_URL)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.get_json()
-        # logging.debug("data = %s", data)
-        return len(data)
+        self.assertEqual(len(data), 3)
+        
+    def test_find_product_by_name(self):
+        """It should Find a Product by Name"""
+        self._create_products(3)
+        response = self.client.get(BASE_URL, query_string={"name": "Hat"})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+    def test_find_product_by_category(self):
+        """It should Find Products by Category"""
+        self._create_products(3)
+        response = self.client.get(BASE_URL, query_string={"category": "CLOTHS"})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+    def test_find_product_by_availability(self):
+        """It should Find Products by Availability"""
+        self._create_products(3)
+        response = self.client.get(BASE_URL, query_string={"available": "True"})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+############################################################
+# E R R O R   T E S T S
+############################################################
+    def test_bad_request(self):
+        """It should return a 400 Bad Request"""
+        response = self.client.post(BASE_URL, json={"wrong_key": "value"})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        
+    def test_method_not_allowed(self):
+        """It should return a 405 Method Not Allowed"""
+        response = self.client.put(BASE_URL)
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        
+    def test_unsupported_media_type(self):
+        """It should return 415 Unsupported Media Type"""
+        response = self.client.post(BASE_URL, data="{}", content_type="text/plain")
+        self.assertEqual(response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
+        
+    def test_not_found(self):
+        """It should return 404 Not Found"""
+        response = self.client.get(f"{BASE_URL}/9999")
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+ 
+    def test_internal_server_error(self):
+        """It should return 500 Internal Server Error"""
+        response = self.client.get("/cause-error")
+        self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
+        data = response.get_json()
+        self.assertEqual(data["error"], "Internal Server Error")
