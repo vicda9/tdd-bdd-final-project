@@ -27,7 +27,7 @@ import os
 import logging
 import unittest
 from decimal import Decimal
-from service.models import Product, Category, db
+from service.models import Product, Category, db, DataValidationError
 from service import app
 from tests.factories import ProductFactory
 
@@ -50,7 +50,6 @@ class TestProductModel(unittest.TestCase):
         app.config["DEBUG"] = False
         app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URI
         app.logger.setLevel(logging.CRITICAL)
-        Product.init_db(app)
 
     @classmethod
     def tearDownClass(cls):
@@ -178,7 +177,8 @@ class TestProductModel(unittest.TestCase):
             category=Category.TOOLS
         ).create()
 
-        Product(name="Unavailable Product",
+        Product(
+            name="Unavailable Product",
             description="Out of Stock",
             price=150.0, available=False,
             category=Category.TOOLS
@@ -191,3 +191,53 @@ class TestProductModel(unittest.TestCase):
         self.assertGreater(len(unavailable_products.all()), 0)
         self.assertTrue(available_products.first().available)
         self.assertFalse(unavailable_products.first().available)
+
+    def test_deserialize_with_missing_field(self):
+        """It should raise DataValidationError when a required field is missing"""
+        product = Product()
+        with self.assertRaises(DataValidationError):
+            product.deserialize({"description": "desc", "price": "10.0", "available": True, "category": "FOOD"})
+
+    def test_deserialize_with_invalid_availability_type(self):
+        """It should raise DataValidationError for non-boolean availability"""
+        product = Product()
+        with self.assertRaises(DataValidationError):
+            product.deserialize({
+                "name": "Item",
+                "description": "desc",
+                "price": "10.0",
+                "available": "yes",  # invalid type
+                "category": "FOOD"
+            })
+
+    def test_deserialize_with_invalid_category(self):
+        """It should raise DataValidationError for invalid category"""
+        product = Product()
+        with self.assertRaises(DataValidationError):
+            product.deserialize({
+                "name": "Item",
+                "description": "desc",
+                "price": "10.0",
+                "available": True,
+                "category": "NOT_A_REAL_CATEGORY"
+            })
+
+    def test_deserialize_with_none(self):
+        """It should raise DataValidationError when None is passed"""
+        product = Product()
+        with self.assertRaises(DataValidationError):
+            product.deserialize(None)
+
+    def test_update_without_id(self):
+        """It should raise DataValidationError when updating with no ID"""
+        product = ProductFactory()
+        product.id = None
+        with self.assertRaises(DataValidationError):
+            product.update()
+
+    def test_find_by_price_as_string(self):
+        """It should find by price when passed as a string"""
+        product = ProductFactory(price=Decimal("19.99"))
+        product.create()
+        products = Product.find_by_price("19.99")
+        self.assertEqual(len(products.all()), 1)

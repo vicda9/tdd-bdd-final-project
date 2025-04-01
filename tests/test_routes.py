@@ -26,11 +26,10 @@ Test cases can be run with the following:
 """
 import os
 import logging
-from decimal import Decimal
 from unittest import TestCase
 from service import app
 from service.common import status
-from service.models import db, init_db, Product
+from service.models import db, Product
 from tests.factories import ProductFactory
 
 # Disable all but critical errors during normal test run
@@ -46,6 +45,8 @@ BASE_URL = "/products"
 ######################################################################
 #  T E S T   C A S E S
 ######################################################################
+
+
 class TestProductRoutes(TestCase):
     """Product Service tests"""
 
@@ -56,7 +57,6 @@ class TestProductRoutes(TestCase):
         app.config["DEBUG"] = False
         app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URI
         app.logger.setLevel(logging.CRITICAL)
-        init_db(app)
 
     @classmethod
     def tearDownClass(cls):
@@ -76,6 +76,7 @@ class TestProductRoutes(TestCase):
 ############################################################
 # Utility function to bulk create products
 ############################################################
+
     def _create_products(self, count: int = 1) -> list:
         """Factory method to create products in bulk"""
         products = []
@@ -86,11 +87,13 @@ class TestProductRoutes(TestCase):
             new_product = response.get_json()
             test_product.id = new_product["id"]
             products.append(test_product)
+
         return products
 
 ######################################################################
 #  T E S T   C A S E S
 ######################################################################
+
     def test_index(self):
         """It should return the index page"""
         response = self.client.get("/")
@@ -109,7 +112,7 @@ class TestProductRoutes(TestCase):
         test_product = ProductFactory()
         response = self.client.post(BASE_URL, json=test_product.serialize())
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        
+
     def test_read_product(self):
         """It should Read a single Product"""
         test_product = self._create_products()[0]
@@ -133,7 +136,7 @@ class TestProductRoutes(TestCase):
         test_product = self._create_products()[0]
         response = self.client.delete(f"{BASE_URL}/{test_product.id}")
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        
+
     def test_list_products(self):
         """It should List all Products"""
         self._create_products(3)
@@ -141,19 +144,19 @@ class TestProductRoutes(TestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.get_json()
         self.assertEqual(len(data), 3)
-        
+
     def test_find_product_by_name(self):
         """It should Find a Product by Name"""
         self._create_products(3)
         response = self.client.get(BASE_URL, query_string={"name": "Hat"})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
+
     def test_find_product_by_category(self):
         """It should Find Products by Category"""
         self._create_products(3)
         response = self.client.get(BASE_URL, query_string={"category": "CLOTHS"})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        
+
     def test_find_product_by_availability(self):
         """It should Find Products by Availability"""
         self._create_products(3)
@@ -163,29 +166,53 @@ class TestProductRoutes(TestCase):
 ############################################################
 # E R R O R   T E S T S
 ############################################################
+
     def test_bad_request(self):
         """It should return a 400 Bad Request"""
         response = self.client.post(BASE_URL, json={"wrong_key": "value"})
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        
+
     def test_method_not_allowed(self):
         """It should return a 405 Method Not Allowed"""
         response = self.client.put(BASE_URL)
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
-        
+
     def test_unsupported_media_type(self):
         """It should return 415 Unsupported Media Type"""
         response = self.client.post(BASE_URL, data="{}", content_type="text/plain")
         self.assertEqual(response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
-        
+
     def test_not_found(self):
         """It should return 404 Not Found"""
         response = self.client.get(f"{BASE_URL}/9999")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
- 
+
     def test_internal_server_error(self):
         """It should return 500 Internal Server Error"""
         response = self.client.get("/cause-error")
         self.assertEqual(response.status_code, status.HTTP_500_INTERNAL_SERVER_ERROR)
         data = response.get_json()
         self.assertEqual(data["error"], "Internal Server Error")
+
+    def test_missing_content_type(self):
+        """It should return 415 if no Content-Type header"""
+        response = self.client.post(BASE_URL, data='{}')  # No content-type
+        self.assertEqual(response.status_code, status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
+
+    def test_find_product_by_invalid_category(self):
+        """It should return 400 for invalid category filter"""
+        response = self.client.get(BASE_URL, query_string={"category": "INVALID"})
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_update_product_with_invalid_data(self):
+        """It should return 400 on invalid update data"""
+        product = self._create_products()[0]
+        invalid_data = {
+            "name": "Bad Update",
+            "description": "Invalid category",
+            "price": "20.00",
+            "available": True,
+            "category": "INVALID"
+        }
+        response = self.client.put(f"{BASE_URL}/{product.id}", json=invalid_data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

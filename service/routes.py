@@ -28,18 +28,23 @@ from . import app
 ######################################################################
 # H E A L T H   C H E C K
 ######################################################################
+
+
 @app.route("/health")
 def healthcheck():
     """Let them know our heart is still beating"""
     return jsonify(status=200, message="OK"), status.HTTP_200_OK
 
+
 @app.route("/cause-error")
 def cause_error():
     raise Exception("Intentional Error for testing 500")
 
+
 ######################################################################
 # H O M E   P A G E
 ######################################################################
+
 @app.route("/")
 def index():
     """Base URL for our service"""
@@ -120,6 +125,7 @@ def list_products():
     results = [product.serialize() for product in products]
     return jsonify(results), status.HTTP_200_OK
 
+
 ######################################################################
 # R E A D   A   P R O D U C T
 ######################################################################
@@ -129,7 +135,7 @@ def get_product(product_id):
     """Retrieve a single Product by its ID"""
     product = Product.find(product_id)
     if not product:
-        return jsonify({"error": "Product not found"}), status.HTTP_404_NOT_FOUND
+        abort(status.HTTP_404_NOT_FOUND, f"Product with id '{product_id}' was not found.")
     return jsonify(product.serialize()), status.HTTP_200_OK
 
 
@@ -142,7 +148,7 @@ def update_product(product_id):
     """Update an existing product"""
     product = Product.find(product_id)
     if not product:
-        return jsonify({"error": "Product not found"}), status.HTTP_404_NOT_FOUND
+        abort(status.HTTP_404_NOT_FOUND, f"Product with id '{product_id}' was not found.")
 
     try:
         product.deserialize(request.json)
@@ -161,20 +167,7 @@ def delete_product(product_id):
     """Delete a product by its ID"""
     product = Product.find(product_id)
     if not product:
-        return jsonify({"error": "Product not found"}), status.HTTP_404_NOT_FOUND
+        abort(status.HTTP_404_NOT_FOUND, f"Product with id '{product_id}' was not found.")
 
     product.delete()
     return '', status.HTTP_204_NO_CONTENT
-
-@app.errorhandler(Exception)
-def internal_server_error(error):
-    """Handles unexpected server error with 500_SERVER_ERROR"""
-    message = str(error)
-    app.logger.error(message)
-    response = jsonify(
-        status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        error="Internal Server Error",
-        message=message
-    )
-    response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-    return response

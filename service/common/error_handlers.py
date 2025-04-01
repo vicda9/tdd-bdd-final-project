@@ -96,3 +96,18 @@ def internal_server_error(error):
         ),
         status.HTTP_500_INTERNAL_SERVER_ERROR,
     )
+
+
+@app.errorhandler(Exception)
+def unhandled_exception_handler(error):
+    """Handles all uncaught exceptions with 500_SERVER_ERROR"""
+    message = str(error)
+    app.logger.error(f"Unhandled Exception: {message}")
+    return (
+        jsonify(
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            error="Internal Server Error",
+            message=message
+        ),
+        status.HTTP_500_INTERNAL_SERVER_ERROR,
+    )
