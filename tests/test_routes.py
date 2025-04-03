@@ -25,11 +25,8 @@ Test cases can be run with the following:
     nosetests --stop tests/test_service.py:TestProductService
 """
 import os
-import logging
-from unittest import TestCase
-from service import app
+from tests.test_base import BaseTestCase
 from service.common import status
-from service.models import db, Product
 from tests.factories import ProductFactory
 
 # Disable all but critical errors during normal test run
@@ -47,31 +44,8 @@ BASE_URL = "/products"
 ######################################################################
 
 
-class TestProductRoutes(TestCase):
+class TestProductRoutes(BaseTestCase):
     """Product Service tests"""
-
-    @classmethod
-    def setUpClass(cls):
-        """Run once before all tests"""
-        app.config["TESTING"] = True
-        app.config["DEBUG"] = False
-        app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URI
-        app.logger.setLevel(logging.CRITICAL)
-
-    @classmethod
-    def tearDownClass(cls):
-        """Run once after all tests"""
-        db.session.close()
-
-    def setUp(self):
-        """Runs before each test"""
-        self.client = app.test_client()
-        db.session.query(Product).delete()
-        db.session.commit()
-
-    def tearDown(self):
-        """Runs after each test"""
-        db.session.remove()
 
 ############################################################
 # Utility function to bulk create products

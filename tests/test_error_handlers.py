@@ -1,13 +1,9 @@
-import unittest
-from service import app
+from tests.test_base import BaseTestCase
 from service.common import status
 
 
-class TestErrorHandlers(unittest.TestCase):
+class TestErrorHandlers(BaseTestCase):
     """Test error handlers"""
-
-    def setUp(self):
-        self.client = app.test_client()
 
     def test_unsupported_media_type(self):
         """It should return 415 Unsupported Media Type"""

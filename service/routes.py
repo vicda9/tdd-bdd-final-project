@@ -117,7 +117,10 @@ def list_products():
     if name:
         query = query.filter(Product.name == name)
     if category:
-        query = query.filter(Product.category == Category[category])
+        try:
+            query = query.filter(Product.category == Category[category.upper()])
+        except KeyError:
+            abort(status.HTTP_400_BAD_REQUEST, f"Invalid category '{category}'")
     if available:
         query = query.filter(Product.available == (available.lower() == 'true'))
 
