@@ -23,6 +23,7 @@ from flask import url_for  # noqa: F401 pylint: disable=unused-import
 from service.models import Product, Category, DataValidationError
 from service.common import status  # HTTP Status Codes
 from . import app
+from werkzeug.exceptions import BadRequest
 
 
 ######################################################################
@@ -117,7 +118,10 @@ def list_products():
     if name:
         query = query.filter(Product.name == name)
     if category:
-        query = query.filter(Product.category == Category[category])
+        try:
+            query = query.filter(Product.category == Category[category])
+        except KeyError:
+            raise BadRequest(f"Invalid category: {category}")
     if available:
         query = query.filter(Product.available == (available.lower() == 'true'))
 

@@ -81,11 +81,18 @@ def step_impl(context, element_name):
 @when('I copy the "{element_name}" field')
 def step_impl(context, element_name):
     element_id = ID_PREFIX + element_name.lower().replace(' ', '_')
-    element = WebDriverWait(context.driver, context.wait_seconds).until(
-        expected_conditions.presence_of_element_located((By.ID, element_id))
-    )
+
+    def field_has_value(driver):
+        el = driver.find_element(By.ID, element_id)
+        value = el.get_attribute('value')
+        return value is not None and value.strip() != ""
+
+    WebDriverWait(context.driver, context.wait_seconds).until(field_has_value)
+
+    element = context.driver.find_element(By.ID, element_id)
     context.clipboard = element.get_attribute('value')
     logging.info('Clipboard contains: %s', context.clipboard)
+    print(f"[DEBUG] Copied value from {element_id}: {context.clipboard}")
 
 @when('I paste the "{element_name}" field')
 def step_impl(context, element_name):
@@ -104,7 +111,30 @@ def step_impl(context, element_name):
 # to get the element id of any button
 ##################################################################
 
-## UPDATE CODE HERE ##
+@when('I press the "{button_name}" button')
+def step_impl(context, button_name):
+    button_id = button_name.lower().replace(" ", "_") + "-btn"
+    button = WebDriverWait(context.driver, context.wait_seconds).until(
+        expected_conditions.element_to_be_clickable((By.ID, button_id))
+    )
+    button.click()
+
+@then('I should see the message "{message}"')
+def step_impl(context, message):
+    element = context.driver.find_element(By.ID, "flash_message")
+    actual_message = element.text.strip()
+    print(f"[DEBUG] Flash message shown: '{actual_message}'")
+    assert message in actual_message, f"Expected '{message}' in flash message, but got '{actual_message}'"
+
+@then('I should see "{text_string}" in the results')
+def step_impl(context, text_string):
+    element = context.driver.find_element(By.ID, "search_results")
+    assert text_string.lower() in element.text.lower()
+
+@then('I should not see "{text_string}" in the results')
+def step_impl(context, text_string):
+    element = context.driver.find_element(By.ID, "search_results")
+    assert text_string.lower() not in element.text.lower()
 
 ##################################################################
 # This code works because of the following naming convention:
@@ -132,3 +162,18 @@ def step_impl(context, element_name, text_string):
     )
     element.clear()
     element.send_keys(text_string)
+
+@then('I should see partial message "{partial_message}" in the results')
+def step_impl(context, partial_message):
+    element = WebDriverWait(context.driver, context.wait_seconds).until(
+        expected_conditions.presence_of_element_located((By.ID, "search_results"))
+    )
+    assert partial_message in element.text
+
+@then('I should see partial message "{partial_message}" in the flash message')
+def step_impl(context, partial_message):
+    element = WebDriverWait(context.driver, context.wait_seconds).until(
+        expected_conditions.presence_of_element_located((By.ID, "flash_message"))
+    )
+    actual_text = element.text.strip()
+    assert partial_message in actual_text, f"Expected partial flash message '{partial_message}', but got '{actual_text}'"

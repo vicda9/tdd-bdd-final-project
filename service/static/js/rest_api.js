@@ -189,7 +189,8 @@ $(function () {
 
         let name = $("#product_name").val();
         let description = $("#product_description").val();
-        let available = $("#product_available").val() == "true";
+        let available_raw = $("#product_available").val();
+        let available = (available_raw === "true" || available_raw === "false") ? available_raw : null;
         let category = $("#product_category").val();
 
         let queryString = ""
@@ -203,11 +204,11 @@ $(function () {
             }
             queryString += 'description=' + description
         }
-        if (available) {
+        if (available !== null) {
             if (queryString.length > 0) {
-                queryString += '&'  // add separator
+                queryString += '&';
             }
-            queryString += 'available=' + available
+            queryString += 'available=' + available;
         }
         if (category) {
             if (queryString.length > 0) {
@@ -226,6 +227,8 @@ $(function () {
         })
 
         ajax.done(function(res){
+            console.log("Search Results:", res);
+
             //alert(res.toSource())
             $("#search_results").empty();
             let table = '<table class="table table-striped" cellpadding="10">'
@@ -247,6 +250,8 @@ $(function () {
             }
             table += '</tbody></table>';
             $("#search_results").append(table);
+
+            console.log("First product returned from search:", firstProduct);
 
             // copy the first result to the form
             if (firstProduct != "") {
