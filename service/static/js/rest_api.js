@@ -191,7 +191,11 @@ $(function () {
         let description = $("#product_description").val();
         let available_raw = $("#product_available").val();
         let available = (available_raw === "true" || available_raw === "false") ? available_raw : null;
+
         let category = $("#product_category").val();
+        if (category === "UNKNOWN") {
+            category = null;
+        }
 
         let queryString = ""
 

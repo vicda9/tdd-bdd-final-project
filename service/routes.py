@@ -115,14 +115,17 @@ def list_products():
     available = request.args.get("available")
 
     query = Product.query
+
     if name:
-        query = query.filter(Product.name == name)
-    if category:
+        query = query.filter(Product.name.ilike(f"%{name}%"))  # case-insensitive
+
+    if category and category != "UNKNOWN":
         try:
             query = query.filter(Product.category == Category[category])
         except KeyError:
             raise BadRequest(f"Invalid category: {category}")
-    if available:
+
+    if available is not None and available.lower() in ["true", "false"]:
         query = query.filter(Product.available == (available.lower() == 'true'))
 
     products = query.all()
