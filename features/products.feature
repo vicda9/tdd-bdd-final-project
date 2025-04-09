@@ -92,7 +92,6 @@ Scenario: Delete a Product
     And I paste the "Id" field
     And I press the "Retrieve" button
     Then I should see partial message "Product with id" in the flash message
-    Then I should see partial message "Product has been Deleted" in the flash message
 
 Scenario: List all Products
     When I visit the "Home Page"

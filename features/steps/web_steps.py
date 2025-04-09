@@ -123,10 +123,12 @@ def step_impl(context, button_name):
 
 @then('I should see the message "{message}"')
 def step_impl(context, message):
-    element = context.driver.find_element(By.ID, "flash_message")
-    actual_message = element.text.strip()
-    print(f"[DEBUG] Flash message shown: '{actual_message}'")
-    assert message in actual_message, f"Expected '{message}' in flash message, but got '{actual_message}'"
+    element = WebDriverWait(context.driver, context.wait_seconds).until(
+        expected_conditions.text_to_be_present_in_element(
+            (By.ID, "flash_message"),
+            message
+        )
+    )
 
 @then('I should see "{text_string}" in the results')
 def step_impl(context, text_string):

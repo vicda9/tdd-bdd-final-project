@@ -179,8 +179,7 @@ class Product(db.Model):
     @classmethod
     def find(cls, product_id: int):
         """Finds a Product by its ID"""
-        with orm.Session(db.engine) as session:
-            return session.get(cls, product_id)
+        return cls.query.get(product_id)
 
     @classmethod
     def find_by_name(cls, name: str) -> list:

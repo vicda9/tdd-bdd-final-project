@@ -271,4 +271,44 @@ $(function () {
 
     });
 
-})
+    // ****************************************
+    // List all Products
+    // ****************************************
+
+    $("#list-btn").click(function () {
+        $("#flash_message").empty();
+
+        let ajax = $.ajax({
+            type: "GET",
+            url: `/products`,
+            contentType: "application/json",
+            data: ''
+        });
+
+        ajax.done(function(res){
+            $("#search_results").empty();
+            let table = '<table class="table table-striped" cellpadding="10">'
+            table += '<thead><tr>'
+            table += '<th class="col-md-2">ID</th>'
+            table += '<th class="col-md-2">Name</th>'
+            table += '<th class="col-md-2">Description</th>'
+            table += '<th class="col-md-2">Available</th>'
+            table += '<th class="col-md-2">Category</th>'
+            table += '<th class="col-md-2">Price</th>'
+            table += '</tr></thead><tbody>'
+            for(let i = 0; i < res.length; i++) {
+                let product = res[i];
+                table +=  `<tr><td>${product.id}</td><td>${product.name}</td><td>${product.description}</td><td>${product.available}</td><td>${product.category}</td><td>${product.price}</td></tr>`;
+            }
+            table += '</tbody></table>';
+            $("#search_results").append(table);
+
+            flash_message("Success");
+        });
+
+        ajax.fail(function(res){
+            flash_message(res.responseJSON.message);
+        });
+
+    });
+});
