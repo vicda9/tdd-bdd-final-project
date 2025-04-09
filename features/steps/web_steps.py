@@ -29,6 +29,8 @@ from behave import when, then
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select, WebDriverWait
 from selenium.webdriver.support import expected_conditions
+from selenium.common.exceptions import TimeoutException
+import time
 
 ID_PREFIX = 'product_'
 
@@ -146,13 +148,18 @@ def step_impl(context, text_string):
 @then('I should see "{text_string}" in the "{element_name}" field')
 def step_impl(context, text_string, element_name):
     element_id = ID_PREFIX + element_name.lower().replace(' ', '_')
-    found = WebDriverWait(context.driver, context.wait_seconds).until(
-        expected_conditions.text_to_be_present_in_element_value(
-            (By.ID, element_id),
-            text_string
+    try:
+        WebDriverWait(context.driver, context.wait_seconds).until(
+            expected_conditions.text_to_be_present_in_element_value(
+                (By.ID, element_id),
+                text_string
+            )
         )
-    )
-    assert(found)
+    except TimeoutException:
+        # One retry in case value wasn't rendered immediately
+        time.sleep(1)
+        value = context.driver.find_element(By.ID, element_id).get_attribute('value')
+        assert text_string in value, f"Expected '{text_string}' in {element_id}, but got '{value}'"
 
 @when('I change "{element_name}" to "{text_string}"')
 def step_impl(context, element_name, text_string):

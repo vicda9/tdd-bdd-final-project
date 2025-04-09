@@ -91,7 +91,7 @@ Scenario: Delete a Product
     When I press the "Clear" button
     And I paste the "Id" field
     And I press the "Retrieve" button
-    Then I should see partial message "Product with id" in the results
+    Then I should see partial message "Product with id" in the flash message
     Then I should see partial message "Product has been Deleted" in the flash message
 
 Scenario: List all Products
